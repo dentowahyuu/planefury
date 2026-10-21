@@ -1,6 +1,6 @@
-# Dokumentasi Progress: Aviator Runner
+# Dokumentasi Progress: Planefury (sebelumnya Aviator Runner)
 
-Terakhir diperbarui: 2026-10-20
+Terakhir diperbarui: 2026-10-21
 
 Rencana arsitektur dan roadmap lengkap ada di [project.md](project.md). File ini mencatat progress implementasi, analisis bug, dan kondisi terkini.
 
@@ -130,6 +130,15 @@ Tanpa file audio eksternal (`.mp3`/`.wav`). Semua disintesis real-time menggunak
   3. Karena kamera bergerak mengikuti pesawat secara dinamis, objek statis di depan kamera tersebut tampak "menempel" di layar mengikuti gerak pesawat.
 - **Solusi**:
   Memindahkan inisialisasi drop ke callback `onDefeated(bossPos)` di `main.js` yang langsung mendaftarkannya ke dalam array aktif `coins` dan `powerups`. Koin dan power-up kini melaju alami ke arah pemain, memiliki animasi rotasi & bayangan laut, serta dapat dikoleksi dengan sempurna.
+
+### 5. Pesawat Tertutup Jempol pada Layar Sentuh / Mobile (v1.2.0)
+- **Gejala**: Pada smartphone atau layar sentuh, saat pemain menggerakkan pesawat dengan jari, badan pesawat biplane tertutup langsung oleh jempol tangan pemain sehingga rintangan dan tembakan musuh sulit dilihat.
+- **Penyebab**: Kontrol sentuh lama memetakan koordinat jari pemain langsung ke target posisi pesawat 1:1 (`target.x = touch.x, target.y = touch.y`).
+- **Solusi**: Mengganti pemetaan posisi langsung dengan **Dynamic Floating Virtual Joystick** (`#joystick-zone`, `#joystick-base`, `#joystick-knob`):
+  1. *Unobstructed View & Centered Layout*: Jempol pemain beroperasi di area bawah layar dengan resting position tepat di tengah bawah (*bottom-center*), membiarkan ruang tengah/atas tempat pesawat bermanuver 100% bebas hambatan visual serta seimbang simetris untuk jempol kiri maupun kanan.
+  2. *Dynamic Floating Anchor*: Mendukung gaya bermain tangan kiri maupun kanan; joystick otomatis memposisikan titik jangkar (*base ring*) di bawah jempol pemain.
+  3. *Analog Velocity & Non-linear Curve*: Menggunakan deadzone 5px dan power-curve 1.15 untuk kontrol micro-dodging presisi tinggi dan manuver belok cepat. Sayap pesawat tetap memiring otomatis (*banking tilt*) saat digerakkan.
+  4. *Desktop Compatibility*: Input mouse di PC tetap bekerja 100% mulus berkat pemisahan guard event `mousemove` dari simulated touch.
 
 ---
 

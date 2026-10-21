@@ -14,7 +14,7 @@ import {
   showBossHUD, updateBossHP, hideBossHUD,
   togglePauseUI, updateSoundButton
 } from './ui.js';
-import { target, initInput, updateKeyboardInput } from './input.js';
+import { target, initInput, updateKeyboardInput, setJoystickVisible } from './input.js';
 import { kill, updateShadow } from './objects/Shadow.js';
 import { createSea, updateSea } from './objects/Sea.js';
 import { createSky, updateClouds } from './objects/Sky.js';
@@ -154,6 +154,7 @@ function setPaused(p) {
   if (state !== 'playing') return;
   isPaused = p;
   togglePauseUI(isPaused);
+  setJoystickVisible(!isPaused);
   if (isPaused) {
     stopBGM();
   } else {
@@ -179,6 +180,7 @@ function start() {
   plane.visible = true;
   target.x = 0; target.y = 5;
   state = 'playing';
+  setJoystickVisible(true);
 
   waveNumber = 1;
   startWave(waveNumber);
@@ -191,6 +193,7 @@ function start() {
 
 function gameOver() {
   state = 'over';
+  setJoystickVisible(false);
   stopBGM();
   hideBossHUD();
   hideWaveBanner();

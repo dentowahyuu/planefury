@@ -85,6 +85,15 @@
     #powerups-hud{flex-wrap:wrap;gap:4px}
     .pu-tag{font-size:10px;padding:3px 7px}
   }
+
+  /* Virtual Flight Joystick for Mobile Touch */
+  #joystick-zone{position:fixed;inset:0;pointer-events:none;z-index:65;user-select:none;touch-action:none}
+  #joystick-base{position:absolute;width:120px;height:120px;border-radius:50%;border:2px solid rgba(255,69,0,.45);background:radial-gradient(circle,rgba(255,69,0,.14) 0%,rgba(15,23,42,.65) 85%);box-shadow:0 0 24px rgba(255,69,0,.25),inset 0 0 16px rgba(255,69,0,.2);backdrop-filter:blur(4px);transform:translate(-50%,-50%);display:none;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s ease-out,border-color .2s,box-shadow .2s}
+  #joystick-base::before{content:'';position:absolute;width:70px;height:70px;border-radius:50%;border:1px dashed rgba(255,184,0,.35)}
+  #joystick-base.visible{display:flex}
+  #joystick-base.active{border-color:rgba(255,120,0,.9);box-shadow:0 0 32px rgba(255,69,0,.6),inset 0 0 20px rgba(255,184,0,.45)}
+  #joystick-knob{position:absolute;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#ff7a5a,#ff4500);box-shadow:0 4px 14px rgba(255,69,0,.75),inset 0 2px 4px rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;color:#fff;transform:translate(0,0);will-change:transform;pointer-events:none}
+  #joystick-icon{filter:drop-shadow(0 1px 2px rgba(0,0,0,.4));transition:transform .06s ease-out}
 </style>
 </head>
 <body>
@@ -133,6 +142,17 @@
 
 <div id="toast"></div>
 
+<!-- Virtual Flight Joystick (Mobile Touch) -->
+<div id="joystick-zone">
+  <div id="joystick-base">
+    <div id="joystick-knob">
+      <svg id="joystick-icon" viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+        <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/>
+      </svg>
+    </div>
+  </div>
+</div>
+
 <!-- Start / Game Over Overlay -->
 <div id="overlay">
   <div class="card">
@@ -141,7 +161,7 @@
     </div>
     <h1 id="title">PLANEFURY</h1>
     <p id="msg">Terbang melewati lautan, basmi rombongan musuh, kalahkan Boss Goliath!</p>
-    <p class="keys">MOUSE / SENTUH / WASD / PANAH  •  P: PAUSE  •  M: SUARA</p>
+    <p class="keys">MOUSE / JOYSTICK SENTUH / WASD  •  P: PAUSE  •  M: SUARA</p>
     <div class="btn" id="btn">MULAI</div>
   </div>
 </div>
