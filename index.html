@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>PLANEFURY</title>
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#0F172A">
+<meta name="description" content="Planefury — 3D Supersonic Retro-Arcade Flight Shooter">
+<style>
+  :root{--panel:rgba(12,32,64,.42);--accent:#ff5a4a;--gold:#ffc933}
+  html,body{margin:0;height:100%;overflow:hidden;background:#87ceeb;font-family:'Segoe UI','Trebuchet MS',Verdana,sans-serif;touch-action:none;user-select:none}
+  canvas{display:block}
+  #hud{position:fixed;top:14px;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;padding:0 18px;color:#fff;pointer-events:none;z-index:50}
+  .pill{background:var(--panel);border:1px solid rgba(255,255,255,.25);border-radius:16px;padding:8px 16px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+  #left{display:flex;flex-direction:column;gap:8px}
+  #center{display:flex;flex-direction:column;align-items:center}
+  #right{display:flex;align-items:center;gap:8px}
+  .lbl{font-size:11px;letter-spacing:2px;opacity:.75;text-transform:uppercase}
+  #score{font-size:34px;font-weight:800;line-height:1;text-shadow:0 2px 6px rgba(0,0,0,.35)}
+  #wave-hud{font-size:19px;font-weight:900;letter-spacing:2px;color:#ffd9a0;text-shadow:0 2px 6px rgba(0,0,0,.4)}
+  #coinrow{display:flex;align-items:center;gap:8px;font-weight:700;font-size:20px;width:fit-content}
+  .coin{width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff2a8,var(--gold) 55%,#c98a00);box-shadow:0 0 8px #ffc93388;display:inline-block}
+  #lives{display:flex;gap:6px;font-size:30px;line-height:1}
+  .heart{color:#ff3d6e;text-shadow:0 0 10px #ff3d6e99;transition:transform .2s}
+  .heart.lost{color:#ffffff40;text-shadow:none}
+  .heart.pop{animation:pop .5s}
+  @keyframes pop{0%{transform:scale(.3)}60%{transform:scale(1.5)}100%{transform:scale(1)}}
+  #best{font-size:20px;font-weight:700}
+  .hud-btn{background:var(--panel);border:1px solid rgba(255,255,255,.25);border-radius:14px;color:#fff;font-size:18px;width:40px;height:40px;cursor:pointer;pointer-events:auto;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.25);transition:transform .15s,background .2s}
+  .hud-btn:hover{background:rgba(255,255,255,.2);transform:scale(1.05)}
+  .hud-btn:active{transform:scale(.95)}
+  #vignette{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .4s;background:radial-gradient(ellipse at center,transparent 55%,rgba(255,30,60,.45) 100%)}
+  #vignette.on{opacity:1;animation:beat 1s infinite}
+  @keyframes beat{50%{opacity:.45}}
+  #toast{position:fixed;top:28%;left:50%;transform:translateX(-50%);color:#fff;font-size:34px;font-weight:800;text-shadow:0 3px 10px rgba(0,0,0,.5);pointer-events:none;opacity:0;z-index:70}
+  #toast.show{animation:toast 1.4s}
+  @keyframes toast{0%{opacity:0;transform:translate(-50%,20px) scale(.8)}20%{opacity:1;transform:translate(-50%,0) scale(1.1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-30px)}}
+  
+  /* Wave Announcement Banner */
+  #wave-banner{position:fixed;top:38%;left:50%;transform:translate(-50%,-50%) scale(.8);display:flex;flex-direction:column;align-items:center;pointer-events:none;opacity:0;transition:opacity .35s,transform .35s;z-index:90}
+  #wave-banner.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+  #wb-title{font-size:clamp(36px,8vw,68px);font-weight:900;letter-spacing:4px;color:#fff;text-shadow:0 0 20px rgba(255,180,0,.8),0 4px 12px rgba(0,0,0,.6);text-transform:uppercase;text-align:center}
+  #wb-sub{font-size:clamp(16px,3.5vw,26px);font-weight:700;letter-spacing:3px;color:#ffd9a0;text-shadow:0 2px 8px rgba(0,0,0,.6);margin-top:4px;text-align:center}
+  #wave-banner.boss #wb-title{color:#ff3d6e;text-shadow:0 0 24px rgba(255,60,110,.9),0 4px 12px rgba(0,0,0,.7);animation:bossPulse .8s infinite alternate}
+  #wave-banner.boss #wb-sub{color:#ffcdd2}
+  @keyframes bossPulse{from{transform:scale(1)}to{transform:scale(1.06)}}
+
+  /* Boss Health Bar HUD */
+  #boss-hud{position:fixed;top:76px;left:50%;transform:translateX(-50%);display:none;flex-direction:column;align-items:center;gap:5px;pointer-events:none;z-index:60}
+  #boss-label{font-size:12px;font-weight:800;letter-spacing:2px;color:#ff3d6e;text-shadow:0 0 10px rgba(255,61,110,.8);text-transform:uppercase}
+  #boss-bar-bg{width:min(420px,80vw);height:14px;background:rgba(10,20,40,.8);border:2px solid #ff3d6e;border-radius:10px;overflow:hidden;box-shadow:0 0 16px rgba(255,61,110,.5)}
+  #boss-bar-fill{width:100%;height:100%;background:linear-gradient(90deg,#ff1744,#ff9100);box-shadow:0 0 10px #ff3d6e;transition:width .15s linear}
+
+  #overlay{position:fixed;inset:0;display:flex;align-items:flex-end;justify-content:center;padding-bottom:5vh;box-sizing:border-box;background:linear-gradient(180deg,rgba(20,50,100,0),rgba(8,20,48,.55));color:#fff;text-align:center;cursor:pointer;z-index:80}
+  #pause-overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(8,20,48,.7);backdrop-filter:blur(6px);color:#fff;text-align:center;z-index:100}
+  .card{padding:30px 48px;border-radius:28px;background:var(--panel);border:1px solid rgba(255,255,255,.25);box-shadow:0 12px 40px rgba(0,0,0,.4);max-width:90vw}
+  #powerups-hud{display:flex;gap:8px;margin-top:6px}
+  .pu-tag{font-size:12px;font-weight:800;letter-spacing:1px;padding:4px 10px;border-radius:12px;display:none;align-items:center;gap:4px;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+  .pu-shield{background:rgba(0,180,255,.35);border:1px solid #00e5ff;color:#e0f7fa}
+  .pu-triple{background:rgba(255,170,0,.35);border:1px solid #ffb300;color:#fff8e1}
+  .pu-magnet{background:rgba(180,0,255,.35);border:1px solid #d500f9;color:#f3e5f5}
+  .pu-rapid{background:rgba(255,61,0,.35);border:1px solid #ff3d00;color:#ffebee}
+  #overlay h1, #pause-overlay h1{font-size:clamp(34px,7vw,64px);margin:0 0 6px;font-weight:900;letter-spacing:3px;background:linear-gradient(180deg,#fff,#ffd9a0);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 4px 8px rgba(0,0,0,.4))}
+  #overlay p, #pause-overlay p{margin:6px 0;font-size:17px;opacity:.9}
+  #overlay .keys{margin-top:14px;font-size:13px;opacity:.7;letter-spacing:1px}
+  .btn{display:inline-block;margin-top:20px;padding:13px 40px;background:linear-gradient(180deg,#ff7a5a,#f2402f);border-radius:40px;font-size:22px;font-weight:800;letter-spacing:2px;box-shadow:0 6px 0 #a82a1e,0 10px 20px rgba(0,0,0,.35);transition:transform .1s;cursor:pointer}
+  .btn:hover{transform:translateY(-2px)}
+  .btn:active{transform:translateY(4px);box-shadow:0 2px 0 #a82a1e}
+  .hidden{display:none!important}
+  @media (max-width: 600px) {
+    #hud{padding:0 8px;top:8px}
+    .pill{padding:5px 8px;border-radius:12px}
+    #score{font-size:22px}
+    #wave-hud{font-size:14px;letter-spacing:1px}
+    #coinrow{font-size:15px;gap:4px}
+    .coin{width:14px;height:14px}
+    #lives{font-size:20px;gap:3px}
+    #pill-best{display:none}
+    .hud-btn{width:34px;height:34px;font-size:15px;border-radius:10px}
+    .card{padding:20px 24px;border-radius:20px}
+    #powerups-hud{flex-wrap:wrap;gap:4px}
+    .pu-tag{font-size:10px;padding:3px 7px}
+  }
+</style>
+</head>
+<body>
+<div id="vignette"></div>
+
+<!-- Top HUD Bar -->
+<div id="hud">
+  <div id="left">
+    <div class="pill"><div class="lbl">Skor</div><div id="score">0</div></div>
+    <div class="pill" id="coinrow"><span class="coin"></span><span id="coins">0</span></div>
+    <div id="powerups-hud">
+      <div id="tag-shield" class="pu-tag pu-shield">🛡 SHIELD</div>
+      <div id="tag-triple" class="pu-tag pu-triple">⚡ 3-SHOT (<span id="triple-time">0</span>s)</div>
+      <div id="tag-magnet" class="pu-tag pu-magnet">🧲 MAGNET (<span id="magnet-time">0</span>s)</div>
+      <div id="tag-rapid" class="pu-tag pu-rapid">🔥 RAPID (<span id="rapid-time">0</span>s)</div>
+    </div>
+  </div>
+  
+  <div id="center">
+    <div class="pill" id="wave-pill"><div class="lbl">Gelombang</div><div id="wave-hud">WAVE 1</div></div>
+  </div>
+
+  <div id="right">
+    <div class="pill" id="lives"></div>
+    <div class="pill" id="pill-best"><div class="lbl">Terbaik</div><div id="best">0</div></div>
+    <div style="display:flex;gap:6px">
+      <button id="btn-sound" class="hud-btn" title="Suara (Mute/Unmute)">🔊</button>
+      <button id="btn-pause" class="hud-btn" title="Jeda (P / Esc)">⏸</button>
+    </div>
+  </div>
+</div>
+
+<!-- Boss Health Bar -->
+<div id="boss-hud">
+  <div id="boss-label">⚠️ GOLIATH DREADNOUGHT ⚠️</div>
+  <div id="boss-bar-bg">
+    <div id="boss-bar-fill"></div>
+  </div>
+</div>
+
+<!-- Central Wave Announcement Banner -->
+<div id="wave-banner">
+  <div id="wb-title">WAVE 1</div>
+  <div id="wb-sub">RECON PATROL</div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Start / Game Over Overlay -->
+<div id="overlay">
+  <div class="card">
+    <div style="display:flex;justify-content:center;margin-bottom:10px">
+      <img src="/planefury-symbol.svg" alt="Planefury Logo" style="width:72px;height:72px;filter:drop-shadow(0 4px 14px rgba(255,69,0,0.6));">
+    </div>
+    <h1 id="title">PLANEFURY</h1>
+    <p id="msg">Terbang melewati lautan, basmi rombongan musuh, kalahkan Boss Goliath!</p>
+    <p class="keys">MOUSE / SENTUH / WASD / PANAH  •  P: PAUSE  •  M: SUARA</p>
+    <div class="btn" id="btn">MULAI</div>
+  </div>
+</div>
+
+<!-- Pause Modal Overlay -->
+<div id="pause-overlay" class="hidden">
+  <div class="card">
+    <h1>GAME DIJEDA</h1>
+    <p>Tekan ESC, P, atau klik tombol di bawah untuk melanjutkan misi.</p>
+    <div class="btn" id="btn-resume">LANJUTKAN</div>
+  </div>
+</div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

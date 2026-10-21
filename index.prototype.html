@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Aviator Runner - Prototype</title>
+<style>
+  :root{--panel:rgba(12,32,64,.42);--accent:#ff5a4a;--gold:#ffc933}
+  html,body{margin:0;height:100%;overflow:hidden;background:#87ceeb;font-family:'Segoe UI','Trebuchet MS',Verdana,sans-serif;touch-action:none;user-select:none}
+  canvas{display:block}
+  #hud{position:fixed;top:14px;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;padding:0 18px;color:#fff;pointer-events:none}
+  .pill{background:var(--panel);border:1px solid rgba(255,255,255,.25);border-radius:16px;padding:8px 16px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+  #left{display:flex;flex-direction:column;gap:8px}
+  .lbl{font-size:11px;letter-spacing:2px;opacity:.75;text-transform:uppercase}
+  #score{font-size:34px;font-weight:800;line-height:1;text-shadow:0 2px 6px rgba(0,0,0,.35)}
+  #coinrow{display:flex;align-items:center;gap:8px;font-weight:700;font-size:20px;width:fit-content}
+  .coin{width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff2a8,var(--gold) 55%,#c98a00);box-shadow:0 0 8px #ffc93388;display:inline-block}
+  #lives{display:flex;gap:6px;font-size:30px;line-height:1}
+  .heart{color:#ff3d6e;text-shadow:0 0 10px #ff3d6e99;transition:transform .2s}
+  .heart.lost{color:#ffffff40;text-shadow:none}
+  .heart.pop{animation:pop .5s}
+  @keyframes pop{0%{transform:scale(.3)}60%{transform:scale(1.5)}100%{transform:scale(1)}}
+  #best{font-size:20px;font-weight:700}
+  #vignette{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .4s;background:radial-gradient(ellipse at center,transparent 55%,rgba(255,30,60,.45) 100%)}
+  #vignette.on{opacity:1;animation:beat 1s infinite}
+  @keyframes beat{50%{opacity:.45}}
+  #toast{position:fixed;top:28%;left:50%;transform:translateX(-50%);color:#fff;font-size:34px;font-weight:800;text-shadow:0 3px 10px rgba(0,0,0,.5);pointer-events:none;opacity:0}
+  #toast.show{animation:toast 1.4s}
+  @keyframes toast{0%{opacity:0;transform:translate(-50%,20px) scale(.8)}20%{opacity:1;transform:translate(-50%,0) scale(1.1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-30px)}}
+  #overlay{position:fixed;inset:0;display:flex;align-items:flex-end;justify-content:center;padding-bottom:5vh;box-sizing:border-box;background:linear-gradient(180deg,rgba(20,50,100,0),rgba(8,20,48,.55));color:#fff;text-align:center;cursor:pointer}
+  .card{padding:30px 48px;border-radius:28px;background:var(--panel);border:1px solid rgba(255,255,255,.25);box-shadow:0 12px 40px rgba(0,0,0,.4);max-width:90vw}
+  #powerups-hud{display:flex;gap:8px;margin-top:6px}
+  .pu-tag{font-size:12px;font-weight:800;letter-spacing:1px;padding:4px 10px;border-radius:12px;display:none;align-items:center;gap:4px;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+  .pu-shield{background:rgba(0,180,255,.35);border:1px solid #00e5ff;color:#e0f7fa}
+  .pu-triple{background:rgba(255,170,0,.35);border:1px solid #ffb300;color:#fff8e1}
+  .pu-magnet{background:rgba(180,0,255,.35);border:1px solid #d500f9;color:#f3e5f5}
+  .pu-rapid{background:rgba(255,61,0,.35);border:1px solid #ff3d00;color:#ffebee}
+  #overlay h1{font-size:clamp(34px,7vw,64px);margin:0 0 6px;font-weight:900;letter-spacing:3px;background:linear-gradient(180deg,#fff,#ffd9a0);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 4px 8px rgba(0,0,0,.4))}
+  #overlay p{margin:6px 0;font-size:17px;opacity:.9}
+  #overlay .keys{margin-top:14px;font-size:13px;opacity:.7;letter-spacing:1px}
+  #overlay .btn{display:inline-block;margin-top:20px;padding:13px 40px;background:linear-gradient(180deg,#ff7a5a,#f2402f);border-radius:40px;font-size:22px;font-weight:800;letter-spacing:2px;box-shadow:0 6px 0 #a82a1e,0 10px 20px rgba(0,0,0,.35);transition:transform .1s}
+  #overlay .btn:hover{transform:translateY(-2px)}
+  #overlay .btn:active{transform:translateY(4px);box-shadow:0 2px 0 #a82a1e}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+<div id="vignette"></div>
+<div id="hud">
+  <div id="left">
+    <div class="pill"><div class="lbl">Skor</div><div id="score">0</div></div>
+    <div class="pill" id="coinrow"><span class="coin"></span><span id="coins">0</span></div>
+    <div id="powerups-hud">
+      <div id="tag-shield" class="pu-tag pu-shield">🛡 SHIELD</div>
+      <div id="tag-triple" class="pu-tag pu-triple">⚡ 3-SHOT (<span id="triple-time">0</span>s)</div>
+      <div id="tag-magnet" class="pu-tag pu-magnet">🧲 MAGNET (<span id="magnet-time">0</span>s)</div>
+      <div id="tag-rapid" class="pu-tag pu-rapid">🔥 RAPID (<span id="rapid-time">0</span>s)</div>
+    </div>
+  </div>
+  <div class="pill" id="lives"></div>
+  <div class="pill"><div class="lbl">Terbaik</div><div id="best">0</div></div>
+</div>
+<div id="toast"></div>
+<div id="overlay">
+  <div class="card">
+    <h1 id="title">AVIATOR RUNNER</h1>
+    <p id="msg">Terbang melewati lautan, hindari rintangan merah, kumpulkan koin emas.</p>
+    <p class="keys">MOUSE / SENTUH / WASD / PANAH</p>
+    <div class="btn" id="btn">MULAI</div>
+  </div>
+</div>
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+/* ================= SETUP ================= */
+const scene = new THREE.Scene();
+const SKY_TOP = 0x3f8fe0, SKY_MID = 0x8fd0f2, SKY_HORIZON = 0xfbe3b8;
+scene.background = new THREE.Color(SKY_HORIZON);
+scene.fog = new THREE.Fog(SKY_HORIZON, 70, 230);
+
+const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 400);
+camera.position.set(0, 7, 16);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = false;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.95;
+document.body.appendChild(renderer.domElement);
+
+// Post-processing dimatikan sementara untuk menguji sumber freeze
+const useBloom = false;
+let composer = null;
+if (useBloom) {
+  composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+  const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.45, 0.5, 0.9);
+  composer.addPass(bloom);
+  composer.addPass(new OutputPass());
+}
+
+scene.add(new THREE.HemisphereLight(0xcfe8ff, 0x5a86a8, 0.8));
+const sun = new THREE.DirectionalLight(0xfff0d0, 0.95);
+sun.position.set(30, 50, 20);
+sun.castShadow = true;
+sun.shadow.camera.left = -30; sun.shadow.camera.right = 30;
+sun.shadow.camera.top = 30; sun.shadow.camera.bottom = -30;
+sun.shadow.mapSize.set(1024, 1024);
+scene.add(sun);
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  if (composer) composer.setSize(innerWidth, innerHeight);
+});
+
+const mat = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, flatShading: true, ...o });
+const rand = (a, b) => a + Math.random() * (b - a);
+
+/* ================= SKY (gradient dome + matahari) ================= */
+(function () {
+  const hex = c => '#' + c.toString(16).padStart(6, '0');
+  const c = document.createElement('canvas'); c.width = 2; c.height = 256;
+  const g = c.getContext('2d'), grd = g.createLinearGradient(0, 0, 0, 256);
+  grd.addColorStop(0, hex(SKY_TOP)); grd.addColorStop(0.5, hex(SKY_MID)); grd.addColorStop(1, hex(SKY_HORIZON));
+  g.fillStyle = grd; g.fillRect(0, 0, 2, 256);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(350, 16, 16),
+    new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false }));
+  scene.add(dome);
+  dome.name = 'dome';
+
+  // matahari: sprite dengan radial gradient
+  const s = document.createElement('canvas'); s.width = s.height = 256;
+  const sg = s.getContext('2d'), rg = sg.createRadialGradient(128, 128, 0, 128, 128, 128);
+  rg.addColorStop(0, 'rgba(255,255,240,1)'); rg.addColorStop(0.18, 'rgba(255,244,200,1)');
+  rg.addColorStop(0.35, 'rgba(255,214,140,.45)'); rg.addColorStop(1, 'rgba(255,200,120,0)');
+  sg.fillStyle = rg; sg.fillRect(0, 0, 256, 256);
+  const st = new THREE.CanvasTexture(s); st.colorSpace = THREE.SRGBColorSpace;
+  const sunSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: st, fog: false, depthWrite: false, transparent: true }));
+  sunSprite.scale.set(110, 110, 1); sunSprite.position.set(60, 55, -300);
+  scene.add(sunSprite);
+})();
+
+/* ================= SEA (vertex waves + warna berdasarkan tinggi) ================= */
+const SEA_W = 160, SEA_L = 320, SEG_X = 28, SEG_Z = 56;
+const seaGeo = new THREE.PlaneGeometry(SEA_W, SEA_L, SEG_X, SEG_Z);
+seaGeo.rotateX(-Math.PI / 2);
+const seaBase = seaGeo.attributes.position.array.slice();
+seaGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(seaGeo.attributes.position.count * 3), 3));
+const sea = new THREE.Mesh(seaGeo, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
+sea.position.set(0, -2, -100);
+sea.receiveShadow = true;
+scene.add(sea);
+
+const seaDeep = new THREE.Color(0x0f5c93), seaShallow = new THREE.Color(0x3fb3d8), seaFoam = new THREE.Color(0xeaf8ff), seaTmp = new THREE.Color();
+function updateSea(dist) {
+  const p = seaGeo.attributes.position, col = seaGeo.attributes.color;
+  for (let i = 0; i < p.count; i++) {
+    const x = seaBase[i * 3], z = seaBase[i * 3 + 2] - dist;
+    const h = Math.sin(x * 0.15 + z * 0.12) * 0.7 + Math.cos(z * 0.2 + x * 0.05) * 0.5;
+    p.setY(i, h);
+    const k = (h + 1.2) / 2.4;                       // 0..1
+    seaTmp.copy(seaDeep).lerp(seaShallow, k);
+    if (k > 0.82) seaTmp.lerp(seaFoam, (k - 0.82) / 0.18 * 0.7);   // puncak ombak berbusa
+    col.setXYZ(i, seaTmp.r, seaTmp.g, seaTmp.b);
+  }
+  p.needsUpdate = true; col.needsUpdate = true;
+}
+
+/* ================= CLOUDS (gumpalan low-poly) ================= */
+const clouds = [];
+const cloudGeo = new THREE.IcosahedronGeometry(1, 1);
+const cloudMat = new THREE.MeshLambertMaterial({ color: 0xdfe8f2, emissive: 0x7f8fa8, flatShading: true });
+function makeCloud() {
+  const g = new THREE.Group();
+  const n = 4 + Math.floor(Math.random() * 4);
+  for (let i = 0; i < n; i++) {
+    const b = new THREE.Mesh(cloudGeo, cloudMat);
+    const s = rand(1.6, 3.2) * (1 - Math.abs(i - n / 2) / n * 0.7);
+    b.position.set((i - n / 2) * 2.2, rand(-.3, .5) + s * 0.2, rand(-1, 1));
+    b.scale.set(s * 1.3, s * 0.85, s);
+    g.add(b);
+  }
+  g.position.set(rand(-90, 90), rand(14, 32), rand(-230, -20));
+  g.userData.spin = rand(-.1, .1);
+  scene.add(g); clouds.push(g);
+}
+for (let i = 0; i < 28; i++) makeCloud();
+
+/* ================= AIRPLANE ================= */
+const plane = new THREE.Group();
+let propeller;
+(function () {
+  const red = mat(0xf25346), white = mat(0xf5f0e0), brown = mat(0x59332e), dark = mat(0x23190f),
+        gold = mat(0xe8b53a), skin = mat(0xf0c8a0), scarf = mat(0x3b8fc4), glass = mat(0x9fd8f0, { transparent: true, opacity: 0.6 });
+  const add = (geo, m, x = 0, y = 0, z = 0) => {
+    const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; plane.add(o); return o;
+  };
+  // badan (menghadap -z)
+  const body = add(new THREE.CylinderGeometry(0.6, 0.4, 3.4, 8), red); body.rotation.x = Math.PI / 2;
+  const stripe = add(new THREE.CylinderGeometry(0.62, 0.55, 0.5, 8), white, 0, 0, 0.5); stripe.rotation.x = Math.PI / 2;
+  const cowl = add(new THREE.CylinderGeometry(0.5, 0.66, 0.7, 8), gold, 0, 0, -1.9); cowl.rotation.x = Math.PI / 2;
+  const spinner = add(new THREE.ConeGeometry(0.28, 0.5, 8), dark, 0, 0, -2.45); spinner.rotation.x = -Math.PI / 2;
+  // kokpit + pilot
+  add(new THREE.SphereGeometry(0.34, 8, 6), skin, 0, 0.78, -0.1);                         // kepala
+  add(new THREE.BoxGeometry(0.52, 0.14, 0.12), dark, 0, 0.82, -0.38);                     // goggles
+  add(new THREE.TorusGeometry(0.3, 0.09, 5, 8), scarf, 0, 0.55, -0.05).rotation.x = Math.PI / 2; // syal
+  add(new THREE.SphereGeometry(0.5, 8, 6), glass, 0, 0.62, -0.1).scale.set(1, .75, 1.5);  // kanopi
+  // sayap bawah + atas + garis warna di ujung
+  add(new THREE.BoxGeometry(5, 0.12, 1.1), red, 0, -0.1, -0.2);
+  add(new THREE.BoxGeometry(5, 0.12, 1.1), white, 0, 0.7, -0.2).scale.set(.85, 1, .8);
+  for (const s of [-1, 1]) {
+    add(new THREE.BoxGeometry(0.5, 0.13, 1.12), white, s * 2.25, -0.1, -0.2);
+    add(new THREE.BoxGeometry(0.4, 0.13, 0.9), red, s * 2.0, 0.7, -0.2);
+    add(new THREE.BoxGeometry(0.08, 0.8, 0.08), brown, s * 1.8, 0.3, -0.2);
+    add(new THREE.BoxGeometry(0.08, 0.8, 0.08), brown, s * 1.5, 0.3, 0.1);
+  }
+  // ekor
+  add(new THREE.BoxGeometry(1.8, 0.1, 0.7), red, 0, 0.1, 1.6);
+  add(new THREE.BoxGeometry(0.1, 0.9, 0.7), red, 0, 0.5, 1.6);
+  add(new THREE.BoxGeometry(0.1, 0.35, 0.5), white, 0, 0.78, 1.65);
+  // baling-baling
+  propeller = new THREE.Group(); propeller.position.set(0, 0, -2.7);
+  for (let i = 0; i < 2; i++) {
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.18, 2.2, 0.06), brown); blade.rotation.z = i * Math.PI / 2; propeller.add(blade);
+  }
+  plane.add(propeller);
+  // roda + penyangga
+  for (const s of [-1, 1]) {
+    const w = add(new THREE.CylinderGeometry(0.3, 0.3, 0.15, 10), dark, s * 0.65, -0.95, -0.8); w.rotation.z = Math.PI / 2;
+    add(new THREE.BoxGeometry(0.07, 0.7, 0.07), dark, s * 0.6, -0.55, -0.8);
+  }
+})();
+scene.add(plane);
+
+// Perisai (Shield) visual bubble di sekitar pesawat
+const shieldGeo = new THREE.SphereGeometry(3.0, 16, 12);
+const shieldMat = new THREE.MeshBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0.35, wireframe: true });
+const shieldMesh = new THREE.Mesh(shieldGeo, shieldMat);
+shieldMesh.visible = false;
+plane.add(shieldMesh);
+
+/* ================= JEJAK ASAP + GARIS KECEPATAN ================= */
+const TRAIL_N = 26, trail = [];
+const trailGeo = new THREE.IcosahedronGeometry(0.25, 0);
+for (let i = 0; i < TRAIL_N; i++) {
+  const m = new THREE.Mesh(trailGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false }));
+  m.userData.life = 0; scene.add(m); trail.push(m);
+}
+let trailIdx = 0, trailTimer = 0;
+function emitTrail() {
+  const m = trail[trailIdx = (trailIdx + 1) % TRAIL_N];
+  m.position.set(plane.position.x + rand(-.1, .1), plane.position.y + 0.05, plane.position.z + 2.2);
+  m.userData.life = 1; m.scale.setScalar(1);
+}
+
+const LINE_N = 36, lines = [];
+const lineGeo = new THREE.BoxGeometry(0.05, 0.05, 1);
+const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35, depthWrite: false, fog: false });
+function resetLine(l, far) {
+  const a = rand(0, Math.PI * 2), r = rand(6, 18);
+  l.position.set(camera.position.x + Math.cos(a) * r * 1.5, camera.position.y - 1 + Math.sin(a) * r * 0.7, far ? rand(-110, 10) : -110);
+  l.scale.z = rand(2, 5);
+}
+for (let i = 0; i < LINE_N; i++) { const l = new THREE.Mesh(lineGeo, lineMat); resetLine(l, true); l.visible = false; scene.add(l); lines.push(l); }
+
+/* ================= SOUND SYNTHESIZER (Web Audio API) ================= */
+let audioCtx = null;
+function initAudio() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+}
+
+let lastShootSoundTime = 0;
+function playTone(freqStart, freqEnd, type, duration, vol = 0.15) {
+  if (!audioCtx || audioCtx.state !== 'running') return;
+  try {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const now = audioCtx.currentTime;
+
+    osc.type = type;
+    osc.frequency.setValueAtTime(freqStart, now);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(freqEnd, 20), now + duration);
+
+    gain.gain.setValueAtTime(vol, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start(now);
+    osc.stop(now + duration + 0.02);
+  } catch (e) {}
+}
+
+// Efek Suara (Throttle suara tembakan agar tidak overload audio thread)
+function soundShoot() {
+  const now = performance.now();
+  const interval = rapidTimer > 0 ? 55 : 130;
+  if (now - lastShootSoundTime < interval) return;
+  lastShootSoundTime = now;
+  if (rapidTimer > 0) {
+    playTone(950, 250, 'sawtooth', 0.04, 0.035);
+  } else {
+    playTone(850, 150, 'sawtooth', 0.06, 0.04);
+  }
+}
+function soundExplode() {
+  playTone(220, 30, 'square', 0.35, 0.25);
+}
+function soundHit() {
+  playTone(180, 60, 'sawtooth', 0.15, 0.2);
+}
+function soundCoin() {
+  playTone(987.77, 1318.51, 'sine', 0.15, 0.18); // B5 -> E6 arpeggio chime
+}
+function soundHeart() {
+  playTone(523.25, 1046.50, 'triangle', 0.3, 0.22); // C5 -> C6 power up
+}
+function soundPowerUp() {
+  playTone(440, 880, 'sine', 0.25, 0.22); // A4 -> A5 power up
+}
+function soundShieldPop() {
+  playTone(350, 100, 'sine', 0.2, 0.25);
+}
+
+/* ================= WORLD OBJECTS ================= */
+/* ================= BULLETS & ENEMIES (Shooter Mechanics) ================= */
+const bullets = [], enemies = [], enemyBullets = [];
+
+// Peluru pemain: proyektil kuning bercahaya
+const bulletGeo = new THREE.CylinderGeometry(0.12, 0.12, 1.2, 6);
+bulletGeo.rotateX(Math.PI / 2);
+const bulletMat = new THREE.MeshBasicMaterial({ color: 0xffea00 });
+
+// Bullet pooling: pre-populate 120 peluru agar zero-allocation saat rapid fire
+const bulletPool = [];
+for (let i = 0; i < 120; i++) {
+  const b = new THREE.Mesh(bulletGeo, bulletMat);
+  b.visible = false;
+  bulletPool.push(b);
+}
+function getBulletMesh() {
+  if (bulletPool.length > 0) {
+    const b = bulletPool.pop();
+    b.visible = true;
+    return b;
+  }
+  return new THREE.Mesh(bulletGeo, bulletMat);
+}
+function recycleBullet(b) {
+  scene.remove(b);
+  if (bulletPool.length < 150) {
+    bulletPool.push(b);
+  }
+}
+
+function fireBullet() {
+  if (state !== 'playing' || !plane.visible) return;
+  soundShoot();
+  const bSpeed = rapidTimer > 0 ? 210 : 180;
+  if (tripleTimer > 0) {
+    // Tembakan tripel menyebar (kiri, tengah, kanan dengan sudut tilt)
+    const configs = [
+      { ox: 0, vx: 0 },
+      { ox: -1.6, vx: -20 },
+      { ox: 1.6, vx: 20 }
+    ];
+    for (const c of configs) {
+      const b = getBulletMesh();
+      b.position.set(plane.position.x + c.ox, plane.position.y - 0.1, plane.position.z - 1.8);
+      b.userData = { speed: bSpeed, vx: c.vx, life: 1.2 };
+      scene.add(b);
+      bullets.push(b);
+    }
+  } else {
+    // Tembakan ganda normal dari sayap kiri dan kanan
+    const offsets = [-1.5, 1.5];
+    for (const ox of offsets) {
+      const b = getBulletMesh();
+      b.position.set(plane.position.x + ox, plane.position.y - 0.1, plane.position.z - 1.8);
+      b.userData = { speed: bSpeed, vx: 0, life: 1.2 };
+      scene.add(b);
+      bullets.push(b);
+    }
+  }
+}
+
+// Model geometri musuh (Platypus-inspired: Zeppelin / Drone tempur retro)
+const enemyBodyGeo = new THREE.ConeGeometry(0.7, 2.2, 7);
+enemyBodyGeo.rotateX(-Math.PI / 2);
+const enemyWingGeo = new THREE.BoxGeometry(2.4, 0.1, 0.6);
+const enemyEyeGeo = new THREE.SphereGeometry(0.25, 6, 6);
+
+const enemyMatScout = new THREE.MeshLambertMaterial({ color: 0x9c27b0, flatShading: true }); // Ungu (zigzag cepat)
+const enemyMatGunner = new THREE.MeshLambertMaterial({ color: 0x2e7d32, flatShading: true }); // Hijau (penembak)
+const enemyMatHeavy = new THREE.MeshLambertMaterial({ color: 0xd84315, flatShading: true }); // Oranye/Bata (tahan 3 hit)
+const eyeMat = new THREE.MeshBasicMaterial({ color: 0x00ffff }); // Sensor mata bercahaya
+
+// Peluru musuh (bola energi merah)
+const eBulletGeo = new THREE.SphereGeometry(0.35, 6, 6);
+const eBulletMat = new THREE.MeshBasicMaterial({ color: 0xff1744 });
+
+function spawnEnemy(type = 'scout') {
+  const g = new THREE.Group();
+  let m = enemyMatScout;
+  let hp = 1;
+  let r = 1.0;
+
+  if (type === 'gunner') {
+    m = enemyMatGunner;
+    hp = 2;
+    r = 1.2;
+  } else if (type === 'heavy') {
+    m = enemyMatHeavy;
+    hp = 4;
+    r = 1.6;
+  }
+
+  const body = new THREE.Mesh(enemyBodyGeo, m);
+  body.castShadow = true;
+  g.add(body);
+
+  const wings = new THREE.Mesh(enemyWingGeo, m);
+  wings.position.set(0, 0, 0.2);
+  wings.castShadow = true;
+  g.add(wings);
+
+  const eye = new THREE.Mesh(enemyEyeGeo, eyeMat);
+  eye.position.set(0, 0.2, 0.8);
+  g.add(eye);
+
+  if (type === 'heavy') {
+    g.scale.setScalar(1.4);
+    r *= 1.4;
+  }
+
+  const x = rand(-BOUNDS.x + 2, BOUNDS.x - 2);
+  const y = rand(BOUNDS.yMin + 1, BOUNDS.yMax - 0.5);
+  g.position.set(x, y, SPAWN_Z);
+  g.userData = {
+    type,
+    hp,
+    maxHp: hp,
+    r,
+    baseX: x,
+    baseY: y,
+    shootTimer: rand(1.0, 2.5),
+    timeAlive: 0
+  };
+
+  addShadow(g, r * 1.1);
+  scene.add(g);
+  enemies.push(g);
+}
+
+function spawnEnemyBullet(pos) {
+  soundShoot();
+  const b = new THREE.Mesh(eBulletGeo, eBulletMat);
+  b.position.copy(pos);
+  b.userData = { speed: 55, r: 0.4 };
+  scene.add(b);
+  enemyBullets.push(b);
+}
+
+const BOUNDS = { x: 11, yMin: 0.5, yMax: 11 };
+const SPAWN_Z = -200, DESPAWN_Z = 25;
+const obstacles = [], coins = [], hearts = [], powerups = [];
+
+// Model & Material Power-Up (Shield, Triple Shot, Magnet, Rapid Fire)
+const puBoxGeo = new THREE.BoxGeometry(1.2, 1.2, 1.2);
+const puMatShield = new THREE.MeshLambertMaterial({ color: 0x00e5ff, emissive: 0x007799, flatShading: true });
+const puMatTriple = new THREE.MeshLambertMaterial({ color: 0xffb300, emissive: 0x995500, flatShading: true });
+const puMatMagnet = new THREE.MeshLambertMaterial({ color: 0xd500f9, emissive: 0x660088, flatShading: true });
+const puMatRapid = new THREE.MeshLambertMaterial({ color: 0xff3d00, emissive: 0xaa1100, flatShading: true });
+
+function spawnPowerUp(type, x, y, z) {
+  const g = new THREE.Group();
+  let m = puMatShield;
+  if (type === 'triple') m = puMatTriple;
+  else if (type === 'magnet') m = puMatMagnet;
+  else if (type === 'rapid') m = puMatRapid;
+
+  const box = new THREE.Mesh(puBoxGeo, m);
+  g.add(box);
+
+  // Ornamen cincin berputar di luar box
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.9, 0.1, 6, 12), m);
+  ring.rotation.x = Math.PI / 2;
+  g.add(ring);
+
+  g.position.set(x, y, z);
+  g.userData = { type, r: 1.2 };
+  addShadow(g, 1.0);
+  scene.add(g);
+  powerups.push(g);
+}
+
+// Bayangan bulat di permukaan laut: petunjuk kedalaman (posisi x/z objek terlihat jelas)
+const SHADOW_Y = -1.4;
+const shadowGeo = new THREE.CircleGeometry(1, 16); shadowGeo.rotateX(-Math.PI / 2);
+const shadowMat = new THREE.MeshBasicMaterial({ color: 0x0a2a44, transparent: true, opacity: 0.28, depthTest: false });
+function addShadow(o, size) {
+  const s = new THREE.Mesh(shadowGeo, shadowMat);
+  s.scale.setScalar(size); s.renderOrder = 1;
+  s.position.set(o.position.x, SHADOW_Y, o.position.z);
+  o.userData.shadow = s; scene.add(s);
+}
+function kill(o) { scene.remove(o); if (o.userData.shadow) scene.remove(o.userData.shadow); }
+
+// Bentuk hati untuk pickup nyawa
+const heartGeo = (function () {
+  const s = new THREE.Shape();
+  s.moveTo(0, -0.6);
+  s.bezierCurveTo(-0.2, -0.35, -0.8, -0.1, -0.8, 0.3);
+  s.bezierCurveTo(-0.8, 0.7, -0.2, 0.8, 0, 0.45);
+  s.bezierCurveTo(0.2, 0.8, 0.8, 0.7, 0.8, 0.3);
+  s.bezierCurveTo(0.8, -0.1, 0.2, -0.35, 0, -0.6);
+  const g = new THREE.ExtrudeGeometry(s, { depth: 0.3, bevelEnabled: true, bevelSize: 0.08, bevelThickness: 0.08, bevelSegments: 1 });
+  g.center(); return g;
+})();
+const heartMat = new THREE.MeshLambertMaterial({ color: 0xff3d6e, emissive: 0xb01846, flatShading: true });
+function spawnHeart() {
+  const h = new THREE.Mesh(heartGeo, heartMat);
+  h.scale.setScalar(1.5);
+  h.position.set(rand(-BOUNDS.x + 2, BOUNDS.x - 2), rand(2, BOUNDS.yMax - 1), SPAWN_Z);
+  h.userData.r = 1.0;
+  addShadow(h, 1.2);
+  scene.add(h); hearts.push(h);
+}
+
+// Sphere vs kotak pesawat (lebih akurat daripada jarak titik: sayap lebar, badan tipis)
+const PLANE_HALF = new THREE.Vector3(2.0, 0.8, 1.8);
+function hitsPlane(o, radius) {
+  const p = plane.position, q = o.position;
+  const cx = THREE.MathUtils.clamp(q.x, p.x - PLANE_HALF.x, p.x + PLANE_HALF.x);
+  const cy = THREE.MathUtils.clamp(q.y, p.y - PLANE_HALF.y, p.y + PLANE_HALF.y);
+  const cz = THREE.MathUtils.clamp(q.z, p.z - PLANE_HALF.z, p.z + PLANE_HALF.z);
+  const dx = q.x - cx, dy = q.y - cy, dz = q.z - cz;
+  return dx * dx + dy * dy + dz * dz < radius * radius;
+}
+
+const rockGeo = new THREE.IcosahedronGeometry(1, 0);
+const mineGeo = new THREE.OctahedronGeometry(1, 0);
+const spikeGeo = new THREE.ConeGeometry(0.25, 1, 5);
+const coinGeo = new THREE.TorusGeometry(0.5, 0.16, 6, 12);
+const coinMat = new THREE.MeshLambertMaterial({ color: 0xffc933, emissive: 0xcc8800, flatShading: true });
+const coinFaceGeo = new THREE.CylinderGeometry(0.44, 0.44, 0.1, 12); coinFaceGeo.rotateX(Math.PI / 2);
+const coinFaceMat = new THREE.MeshLambertMaterial({ color: 0xffe066, emissive: 0xaa7700, flatShading: true });
+const rockColors = [0xb03a2e, 0x9c2f27, 0xc4472f];
+
+// Material yang di-cache / di-share agar tidak alokasi shader baru setiap spawn
+const mineCoreMat = mat(0xd62828, { emissive: 0x7a0000 });
+const spikeMat = mat(0x3a0a0a);
+const rockMats = rockColors.map(c => mat(c));
+
+function spawnObstacle() {
+  const g = new THREE.Group();
+  const kind = Math.random() < 0.5 ? 'mine' : 'rock';
+  let r;
+  if (kind === 'mine') {
+    r = 1.1;
+    const core = new THREE.Mesh(mineGeo, mineCoreMat); core.scale.setScalar(r); core.castShadow = true; g.add(core);
+    g.userData.glow = mineCoreMat; g.userData.phase = rand(0, 6);
+    for (let i = 0; i < 6; i++) {
+      const s = new THREE.Mesh(spikeGeo, spikeMat);
+      const d = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]][i];
+      s.position.set(d[0] * r, d[1] * r, d[2] * r);
+      s.lookAt(s.position.clone().multiplyScalar(2)); s.rotateX(Math.PI / 2);
+      g.add(s);
+    }
+    g.userData.spin = rand(1, 2);
+  } else {
+    r = rand(1.2, 2);
+    const mCol = rockMats[Math.floor(Math.random() * rockMats.length)];
+    const m = new THREE.Mesh(rockGeo, mCol); m.scale.set(r, r * rand(.7, 1.1), r); m.castShadow = true; g.add(m);
+    const chunk = new THREE.Mesh(rockGeo, mCol); chunk.scale.setScalar(r * 0.45); chunk.position.set(r * 0.6, r * 0.4, 0); chunk.castShadow = true; g.add(chunk);
+    g.userData.spin = rand(.3, .8);
+  }
+  g.userData.r = r * 0.85;
+  g.position.set(rand(-BOUNDS.x, BOUNDS.x), rand(BOUNDS.yMin + 0.5, BOUNDS.yMax), SPAWN_Z);
+  addShadow(g, r * 1.1);
+  scene.add(g); obstacles.push(g);
+}
+
+function spawnCoinLine() {
+  const x = rand(-BOUNDS.x + 2, BOUNDS.x - 2), y = rand(2, BOUNDS.yMax - 1);
+  const n = 5, dx = rand(-.6, .6), dy = rand(-.4, .4);
+  for (let i = 0; i < n; i++) {
+    const c = new THREE.Mesh(coinGeo, coinMat);
+    c.position.set(x + dx * i, THREE.MathUtils.clamp(y + dy * i, 1, BOUNDS.yMax), SPAWN_Z - i * 4);
+    c.userData.r = 0.9;
+    c.add(new THREE.Mesh(coinFaceGeo, coinFaceMat));
+    addShadow(c, 0.7);
+    scene.add(c); coins.push(c);
+  }
+}
+
+/* ================= PARTICLES (pool) ================= */
+const parts = [];
+const partGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+const partMats = {};   // material dipakai bersama per warna: tidak ada alokasi/dispose saat hit
+function burst(pos, color, n = 12) {
+  if (parts.length > 60) return; // Cap maksimal partikel di layar agar tidak lag
+  const pm = partMats[color] || (partMats[color] = new THREE.MeshBasicMaterial({ color }));
+  for (let i = 0; i < n; i++) {
+    const m = new THREE.Mesh(partGeo, pm);
+    m.position.copy(pos);
+    m.userData = { v: new THREE.Vector3(rand(-6, 6), rand(-2, 7), rand(-6, 6)), life: 1 };
+    scene.add(m); parts.push(m);
+  }
+}
+
+/* ================= INPUT ================= */
+const target = { x: 0, y: 5 };
+const keys = {};
+function setTarget(cx, cy) {
+  target.x = ((cx / innerWidth) * 2 - 1) * BOUNDS.x;
+  target.y = THREE.MathUtils.lerp(BOUNDS.yMax, BOUNDS.yMin, cy / innerHeight);
+}
+addEventListener('mousemove', e => setTarget(e.clientX, e.clientY));
+addEventListener('touchmove', e => { setTarget(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+addEventListener('touchstart', e => { setTarget(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+addEventListener('keydown', e => { keys[e.code] = true; if ((e.code === 'Space' || e.code === 'Enter') && state !== 'playing') start(); });
+addEventListener('keyup', e => { keys[e.code] = false; });
+
+/* ================= GAME STATE ================= */
+let state = 'menu';
+const HEART_MAX = 2, HEART_DELAY = [12, 20]; // maks hati per permainan, jeda (detik) setelah nyawa tinggal 1
+let speed = 40, dist = 0, bonus = 0, score = 0, coinCount = 0, lives = 3, invuln = 0, shake = 0, obsTimer = 1, coinTimer = 2, heartTimer = 15, heartsSpawned = 0, best = +localStorage.getItem('aviator_best') || 0;
+let enemyTimer = 2.5, shootCooldown = 0;
+let hasShield = false, tripleTimer = 0, magnetTimer = 0, rapidTimer = 0;
+const $ = id => document.getElementById(id);
+$('best').textContent = best;
+
+function renderLives(popIdx = -1) {
+  $('lives').innerHTML = [0, 1, 2].map(i =>
+    `<span class="heart${i >= lives ? ' lost' : ''}${i === popIdx ? ' pop' : ''}">♥</span>`).join('');
+  $('vignette').classList.toggle('on', lives === 1 && state === 'playing');
+}
+let toastTimer;
+function toast(text) {
+  // toast visual tanpa reflow DOM berat
+  const t = $('toast');
+  t.textContent = text;
+  t.className = 'show';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = ''; }, 1200);
+}
+
+function clearWorld() {
+  [...obstacles, ...coins, ...hearts, ...enemies, ...enemyBullets, ...powerups].forEach(kill);
+  bullets.forEach(b => recycleBullet(b));
+  parts.forEach(p => scene.remove(p));
+  obstacles.length = coins.length = hearts.length = enemies.length = enemyBullets.length = bullets.length = parts.length = powerups.length = 0;
+}
+
+function updatePowerupHUD() {
+  $('tag-shield').style.display = hasShield ? 'flex' : 'none';
+  shieldMesh.visible = hasShield;
+
+  if (tripleTimer > 0) {
+    $('tag-triple').style.display = 'flex';
+    $('triple-time').textContent = Math.ceil(tripleTimer);
+  } else {
+    $('tag-triple').style.display = 'none';
+  }
+
+  if (magnetTimer > 0) {
+    $('tag-magnet').style.display = 'flex';
+    $('magnet-time').textContent = Math.ceil(magnetTimer);
+  } else {
+    $('tag-magnet').style.display = 'none';
+  }
+
+  if (rapidTimer > 0) {
+    $('tag-rapid').style.display = 'flex';
+    $('rapid-time').textContent = Math.ceil(rapidTimer);
+  } else {
+    $('tag-rapid').style.display = 'none';
+  }
+}
+
+function start() {
+  initAudio();
+  clearWorld();
+  speed = 40; dist = 0; bonus = 0; score = 0; coinCount = 0; lives = 3; invuln = 0; shake = 0;
+  obsTimer = 1; coinTimer = 2; enemyTimer = 2.5; shootCooldown = 0; heartsSpawned = 0; heartTimer = rand(HEART_DELAY[0], HEART_DELAY[1]);
+  hasShield = false; tripleTimer = 0; magnetTimer = 0; rapidTimer = 0;
+  updatePowerupHUD();
+  plane.position.set(0, 5, 0); plane.visible = true;
+  target.x = 0; target.y = 5;
+  state = 'playing';
+  renderLives(); $('coins').textContent = 0; $('score').textContent = 0;
+  $('overlay').classList.add('hidden');
+}
+
+function gameOver() {
+  state = 'over'; renderLives();
+  soundExplode();
+  burst(plane.position, 0xf25346, 30); burst(plane.position, 0xffa500, 20);
+  plane.visible = false; shake = 1;
+  if (score > best) { best = score; localStorage.setItem('aviator_best', best); $('best').textContent = best; }
+  $('title').textContent = 'GAME OVER';
+  $('msg').textContent = `Skor ${score}  |  Koin ${coinCount}  |  Terbaik ${best}`;
+  $('btn').textContent = 'MAIN LAGI';
+  setTimeout(() => $('overlay').classList.remove('hidden'), 700);
+}
+$('overlay').addEventListener('click', () => { if (state !== 'playing') start(); });
+
+/* ================= LOOP ================= */
+const clock = new THREE.Clock();
+const tmp = new THREE.Vector3();
+
+function update(dt) {
+  const t = clock.elapsedTime;
+  const sp = state === 'playing' ? speed : (state === 'menu' ? 15 : 0);
+  propeller.rotation.z += dt * 40;
+
+  if (state === 'playing') {
+    speed += dt * 0.6;
+    dist += speed * dt;
+    const sc = Math.floor((dist + bonus) / 5);
+    if (sc !== score) { score = sc; $('score').textContent = score; }
+
+    // kontrol keyboard
+    const kx = (keys.ArrowRight || keys.KeyD ? 1 : 0) - (keys.ArrowLeft || keys.KeyA ? 1 : 0);
+    const ky = (keys.ArrowUp || keys.KeyW ? 1 : 0) - (keys.ArrowDown || keys.KeyS ? 1 : 0);
+    if (kx || ky) {
+      target.x = THREE.MathUtils.clamp(target.x + kx * dt * 18, -BOUNDS.x, BOUNDS.x);
+      target.y = THREE.MathUtils.clamp(target.y + ky * dt * 14, BOUNDS.yMin, BOUNDS.yMax);
+    }
+
+    // gerak pesawat halus + tilt
+    const px = plane.position.x, py = plane.position.y;
+    plane.position.x += (target.x - px) * Math.min(1, dt * 7);
+    plane.position.y += (target.y - py) * Math.min(1, dt * 7);
+    plane.rotation.z = (target.x - px) * -0.12 + Math.sin(t * 3) * 0.03;
+    plane.rotation.x = (target.y - py) * 0.1;
+    plane.rotation.y = (px - target.x) * 0.04;
+
+    // spawn
+    obsTimer -= dt; coinTimer -= dt; enemyTimer -= dt;
+    if (obsTimer <= 0) { spawnObstacle(); obsTimer = Math.max(0.35, 1.4 - dist / 4000) * rand(.7, 1.2); }
+    if (coinTimer <= 0) { spawnCoinLine(); coinTimer = rand(3, 5); }
+
+    // spawn musuh bergelombang & bervariasi
+    if (enemyTimer <= 0) {
+      const p = Math.random();
+      if (p < 0.5) {
+        spawnEnemy('scout');
+      } else if (p < 0.8) {
+        spawnEnemy('gunner');
+      } else {
+        spawnEnemy('heavy');
+      }
+      enemyTimer = Math.max(2.0, 4.5 - dist / 3000) * rand(0.9, 1.3);
+    }
+
+    // auto fire peluru pemain
+    shootCooldown -= dt;
+    if (shootCooldown <= 0) {
+      fireBullet();
+      shootCooldown = rapidTimer > 0 ? 0.055 : 0.18; // 18 peluru per detik saat Rapid Fire ("ngucur/beredet")
+    }
+
+    // update peluru pemain
+    for (let i = bullets.length - 1; i >= 0; i--) {
+      const b = bullets[i];
+      b.position.z -= b.userData.speed * dt;
+      if (b.userData.vx) b.position.x += b.userData.vx * dt;
+      b.userData.life -= dt;
+      let hit = false;
+
+      // Cek tabrakan peluru dengan musuh
+      for (let j = enemies.length - 1; j >= 0; j--) {
+        const en = enemies[j];
+        if (b.position.distanceTo(en.position) < en.userData.r + 0.6) {
+          hit = true;
+          en.userData.hp--;
+          burst(b.position, 0xffea00, rapidTimer > 0 ? 2 : 4); // percikan hit
+
+          if (en.userData.hp <= 0) {
+            // Musuh hancur! Ledakan besar
+            soundExplode();
+            burst(en.position, en.userData.type === 'heavy' ? 0xd84315 : (en.userData.type === 'gunner' ? 0x2e7d32 : 0x9c27b0), 24);
+            burst(en.position, 0xffea00, 12);
+            kill(en);
+            enemies.splice(j, 1);
+            bonus += en.userData.type === 'heavy' ? 100 : (en.userData.type === 'gunner' ? 50 : 30);
+            toast('+' + (en.userData.type === 'heavy' ? '100' : (en.userData.type === 'gunner' ? '50' : '30')));
+            // Peluang drop power-up dari musuh yang hancur (28% chance)
+            if (Math.random() < 0.28) {
+              const rpu = Math.random();
+              const puType = rpu < 0.25 ? 'shield' : (rpu < 0.5 ? 'triple' : (rpu < 0.75 ? 'magnet' : 'rapid'));
+              spawnPowerUp(puType, en.position.x, en.position.y, en.position.z);
+            }
+          } else {
+            // Flash efek saat kena tembak tapi belum mati
+            soundHit();
+            en.position.z -= 1.0;
+          }
+          break;
+        }
+      }
+
+      // Cek tabrakan peluru dengan rintangan ranjau (bisa diledakkan peluru!)
+      if (!hit) {
+        for (let j = obstacles.length - 1; j >= 0; j--) {
+          const o = obstacles[j];
+          if (b.position.distanceTo(o.position) < o.userData.r + 0.4) {
+            hit = true;
+            soundExplode();
+            burst(o.position, 0xd62828, 16);
+            kill(o);
+            obstacles.splice(j, 1);
+            bonus += 20;
+            break;
+          }
+        }
+      }
+
+      if (hit || b.userData.life <= 0 || b.position.z < -260) {
+        recycleBullet(b);
+        bullets.splice(i, 1);
+      }
+    }
+
+    // update peluru musuh
+    for (let i = enemyBullets.length - 1; i >= 0; i--) {
+      const eb = enemyBullets[i];
+      eb.position.z += (sp + eb.userData.speed) * dt;
+      const sh = eb.userData.shadow;
+      if (sh) sh.position.set(eb.position.x, SHADOW_Y, eb.position.z);
+
+      if (invuln <= 0 && hitsPlane(eb, eb.userData.r)) {
+        if (hasShield) {
+          hasShield = false;
+          updatePowerupHUD();
+          soundShieldPop();
+          burst(plane.position, 0x00e5ff, 20);
+          toast('🛡 SHIELD BROKEN');
+          invuln = 1.0;
+        } else {
+          soundHit();
+          burst(eb.position, 0xff1744, 14);
+          lives--;
+          renderLives();
+          invuln = 1.5;
+          shake = 0.6;
+          if (lives <= 0) { gameOver(); break; }
+        }
+        kill(eb);
+        enemyBullets.splice(i, 1);
+        continue;
+      }
+
+      if (eb.position.z > DESPAWN_Z) {
+        kill(eb);
+        enemyBullets.splice(i, 1);
+      }
+    }
+
+    // pickup nyawa: maksimal 2 kali per permainan, hanya saat nyawa tinggal 1, muncul agak lama dan acak
+    if (lives === 1 && hearts.length === 0 && heartsSpawned < HEART_MAX) {
+      heartTimer -= dt;
+      if (heartTimer <= 0) {
+        spawnHeart(); heartsSpawned++;
+        heartTimer = rand(HEART_DELAY[0], HEART_DELAY[1]);
+      }
+    }
+
+    // kolisi
+    invuln = Math.max(0, invuln - dt);
+    plane.visible = invuln <= 0 || Math.floor(t * 15) % 2 === 0;
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+      const o = obstacles[i];
+      if (invuln <= 0 && hitsPlane(o, o.userData.r)) {
+        if (hasShield) {
+          hasShield = false;
+          updatePowerupHUD();
+          soundShieldPop();
+          burst(plane.position, 0x00e5ff, 20);
+          toast('🛡 SHIELD BROKEN');
+          invuln = 1.0;
+        } else {
+          soundHit();
+          burst(o.position, 0xd62828);
+          lives--; renderLives(); invuln = 1.5; shake = 0.6;
+          if (lives <= 0) { gameOver(); break; }
+        }
+        kill(o); obstacles.splice(i, 1);
+      }
+    }
+    for (let i = coins.length - 1; i >= 0; i--) {
+      const c = coins[i];
+      if (hitsPlane(c, c.userData.r + 0.4)) {
+        soundCoin();
+        burst(c.position, 0xffc933, 8);
+        kill(c); coins.splice(i, 1);
+        coinCount++; bonus += 25; $('coins').textContent = coinCount;
+      }
+    }
+    for (let i = hearts.length - 1; i >= 0; i--) {
+      const h = hearts[i];
+      if (hitsPlane(h, h.userData.r + 0.5)) {
+        soundHeart();
+        burst(h.position, 0xff3d6e, 16);
+        kill(h); hearts.splice(i, 1);
+        lives = Math.min(lives + 1, 3); renderLives(lives - 1); toast('♥ NYAWA +1');
+      }
+    }
+    // Tabrakan fisik pemain dengan musuh
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      const en = enemies[i];
+      if (invuln <= 0 && hitsPlane(en, en.userData.r)) {
+        if (hasShield) {
+          hasShield = false;
+          updatePowerupHUD();
+          soundShieldPop();
+          burst(plane.position, 0x00e5ff, 20);
+          toast('🛡 SHIELD BROKEN');
+          invuln = 1.0;
+        } else {
+          soundHit();
+          burst(en.position, 0xffa500, 20);
+          lives--; renderLives(); invuln = 1.5; shake = 0.6;
+          if (lives <= 0) { gameOver(); break; }
+        }
+        kill(en); enemies.splice(i, 1);
+      }
+    }
+    // Kolisi pemain dengan Power-Up
+    for (let i = powerups.length - 1; i >= 0; i--) {
+      const pu = powerups[i];
+      if (hitsPlane(pu, pu.userData.r + 0.6)) {
+        soundPowerUp();
+        const type = pu.userData.type;
+        if (type === 'shield') {
+          hasShield = true;
+          burst(pu.position, 0x00e5ff, 18);
+          toast('🛡 SHIELD ACTIVE!');
+        } else if (type === 'triple') {
+          tripleTimer = 10;
+          burst(pu.position, 0xffb300, 18);
+          toast('⚡ TRIPLE SHOT 10s!');
+        } else if (type === 'magnet') {
+          magnetTimer = 10;
+          burst(pu.position, 0xd500f9, 18);
+          toast('🧲 COIN MAGNET 10s!');
+        } else if (type === 'rapid') {
+          rapidTimer = 10;
+          burst(pu.position, 0xff3d00, 18);
+          toast('🔥 RAPID FIRE 10s!');
+        }
+        updatePowerupHUD();
+        kill(pu);
+        powerups.splice(i, 1);
+      }
+    }
+  }
+
+  // gerak dunia (tetap bergerak sedikit saat menu / over)
+  const worldDist = state === 'playing' ? dist : t * 15;
+  updateSea(worldDist);
+
+  // Timer powerup aktif
+  if (state === 'playing') {
+    if (tripleTimer > 0) {
+      tripleTimer -= dt;
+      if (tripleTimer <= 0) { tripleTimer = 0; updatePowerupHUD(); }
+      else if (Math.floor(tripleTimer * 5) % 5 === 0) { $('triple-time').textContent = Math.ceil(tripleTimer); }
+    }
+    if (magnetTimer > 0) {
+      magnetTimer -= dt;
+      if (magnetTimer <= 0) { magnetTimer = 0; updatePowerupHUD(); }
+      else if (Math.floor(magnetTimer * 5) % 5 === 0) { $('magnet-time').textContent = Math.ceil(magnetTimer); }
+
+      // Magnet effect: tarik koin terdekat ke arah pesawat
+      for (const c of coins) {
+        if (c.position.distanceTo(plane.position) < 22) {
+          c.position.x += (plane.position.x - c.position.x) * dt * 7;
+          c.position.y += (plane.position.y - c.position.y) * dt * 7;
+        }
+      }
+    }
+    if (rapidTimer > 0) {
+      rapidTimer -= dt;
+      if (rapidTimer <= 0) { rapidTimer = 0; updatePowerupHUD(); }
+      else if (Math.floor(rapidTimer * 5) % 5 === 0) { $('rapid-time').textContent = Math.ceil(rapidTimer); }
+    }
+    if (hasShield) {
+      shieldMesh.rotation.y += dt * 2;
+      shieldMesh.rotation.x += dt * 1;
+    }
+  }
+
+  for (const arr of [obstacles, coins, hearts, enemies, powerups]) {
+    for (let i = arr.length - 1; i >= 0; i--) {
+      const o = arr[i];
+      o.position.z += sp * dt;
+
+      if (arr === powerups) {
+        o.rotation.y += dt * 3;
+        o.rotation.x += dt * 2;
+        o.position.y += Math.sin(t * 4 + i) * dt * 0.4;
+      } else if (arr === enemies) {
+        // AI gerakan musuh
+        o.userData.timeAlive += dt;
+        const u = o.userData;
+        if (u.type === 'scout') {
+          // Zig-zag menyamping
+          o.position.x = u.baseX + Math.sin(u.timeAlive * 5) * 3.5;
+          o.rotation.z = Math.cos(u.timeAlive * 5) * 0.4;
+        } else if (u.type === 'gunner') {
+          // Bergerak perlahan dan menembak peluru merah ke arah pemain
+          o.position.y = u.baseY + Math.sin(u.timeAlive * 2) * 1.2;
+          u.shootTimer -= dt;
+          if (u.shootTimer <= 0 && o.position.z < -10 && o.position.z > -160) {
+            spawnEnemyBullet(o.position);
+            u.shootTimer = rand(1.8, 2.8);
+          }
+        } else if (u.type === 'heavy') {
+          // Pesawat besar lambat berputar pelan
+          o.rotation.y += dt * 1.5;
+        }
+      } else if (arr === obstacles) {
+        o.rotation.x += dt * o.userData.spin; o.rotation.y += dt * o.userData.spin; o.position.y += Math.sin(t * 2 + i) * dt * 0.5;
+        if (o.userData.glow) o.userData.glow.emissiveIntensity = 0.6 + Math.sin(t * 6 + o.userData.phase) * 0.5;   // ranjau berkedip
+      }
+      else o.rotation.y += dt * (arr === hearts ? 3 : 4);
+      if (arr === hearts) o.scale.setScalar(1.5 + Math.sin(t * 8) * 0.12);
+      const sh = o.userData.shadow;
+      if (sh) sh.position.set(o.position.x, SHADOW_Y, o.position.z);
+      if (o.position.z > DESPAWN_Z) { kill(o); arr.splice(i, 1); }
+    }
+  }
+  for (const c of clouds) {
+    c.position.z += sp * dt * 0.5; c.rotation.y += c.userData.spin * dt;
+    if (c.position.z > 30) { c.position.z = -230; c.position.x = rand(-90, 90); }
+  }
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i], u = p.userData;
+    u.life -= dt * 1.4; u.v.y -= 12 * dt;
+    p.position.addScaledVector(u.v, dt); p.rotation.x += dt * 5; p.rotation.y += dt * 5;
+    p.scale.setScalar(Math.max(u.life, 0.01));
+    if (u.life <= 0) { scene.remove(p); parts.splice(i, 1); }
+  }
+
+  // kamera: mengikuti pesawat hampir 1:1 dan menatap lurus ke depan (sejajar sumbu z),
+  // jadi objek yang tampak sejajar dengan pesawat di layar memang sejajar di dunia (tidak ada paralaks miring)
+  shake = Math.max(0, shake - dt * 2.5);
+  const cx = state === 'menu' ? Math.sin(t * .5) * 4 : plane.position.x * 0.92;
+  const cy = state === 'menu' ? 8 : plane.position.y + 3.2;
+  camera.position.x += (cx - camera.position.x) * Math.min(1, dt * 8);
+  camera.position.y += (cy - camera.position.y) * Math.min(1, dt * 8);
+  const sx = shake > 0 ? rand(-1, 1) * shake * 0.4 : 0, sy = shake > 0 ? rand(-1, 1) * shake * 0.4 : 0;
+  camera.position.x += sx; camera.position.y += sy;
+  camera.lookAt(camera.position.x, camera.position.y - 1.4, -30);
+
+  // FOV melebar seiring kecepatan (kesan ngebut)
+  const fovT = state === 'playing' ? 60 + Math.min((speed - 40) * 0.25, 14) : 60;
+  if (Math.abs(camera.fov - fovT) > 0.05) { camera.fov += (fovT - camera.fov) * Math.min(1, dt * 2); camera.updateProjectionMatrix(); }
+
+  // jejak asap di belakang pesawat
+  if (state === 'playing' && plane.visible) { trailTimer -= dt; if (trailTimer <= 0) { emitTrail(); trailTimer = 0.035; } }
+  for (const m of trail) {
+    const u = m.userData; if (u.life <= 0) { m.material.opacity = 0; continue; }
+    u.life -= dt * 1.6; m.position.z += sp * dt; m.position.y += dt * 0.6;
+    m.scale.setScalar(0.6 + (1 - u.life) * 1.6); m.material.opacity = Math.max(u.life, 0) * 0.28;
+  }
+  // garis kecepatan
+  for (const l of lines) {
+    l.visible = state === 'playing';
+    l.position.z += sp * 1.6 * dt;
+    if (l.position.z > 15) resetLine(l, false);
+  }
+
+  if (state === 'menu') { plane.position.y = 5 + Math.sin(t * 2) * 0.5; plane.rotation.z = Math.sin(t) * 0.15; }
+}
+
+renderer.setAnimationLoop(() => {
+  update(Math.min(clock.getDelta(), 0.05));
+  if (useBloom && composer) {
+    composer.render();
+  } else {
+    renderer.render(scene, camera);
+  }
+});
+plane.position.set(0, 5, 0);
+renderLives();
+</script>
+</body>
+</html>

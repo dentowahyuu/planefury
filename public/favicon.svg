@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256"><title>Planefury</title><g transform="translate(-17.66 -17.66) scale(1.138)">
+  <title id="title-sym-small">Planefury Symbol — Delta Strike</title>
+  <!-- Sharp geometric biplane chevron with flame core cutout -->
+  <path fill="#FF4500" fill-rule="evenodd" d="M128 20 L228 120 L196 152 L144 126 L144 168 L196 210 L170 236 L128 204 L86 236 L60 210 L112 168 L112 126 L60 152 L28 120 Z M128 64 L96 96 L114 96 L114 168 L128 154 L142 168 L142 96 L160 96 Z"/>
+</g></svg>
